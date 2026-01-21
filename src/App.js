@@ -1,71 +1,52 @@
-import "./App.css";
-import { useReducer, useState } from "react";
+import { useEffect, useReducer } from "react";
+import Header from "./Header";
+import Main from "./Main";
+import Loader from "./Loader";
+import Error from "./Error";
+import StartScreen from "./StartScreen";
+
+const initialState = {
+  questions: [],
+  ///// "loading" , "error" , "ready" , "active" , "finished"
+  status: "loading",
+};
 
 function reducer(state, action) {
-  console.log(state, action);
-  if (action.type === "inc") return {...state , count : state.count +1 }
-  if (action.type === "dec") return {...state , count : state.count -1}
-  if (action.type === "setCount") return action.payload
-  
+  switch (action.type) {
+    case "dataReceived":
+      return { ...state, questions: action.payload, status: "ready" };
+    case "start":
+      return { ...state, status: "active" };
+
+    case "dataFailed":
+      return { ...state, status: "error" };
+
+    default:
+      throw new Error("Action unknown");
+  }
 }
 
 function App() {
-  // const [count , setCount] = useState(0) ;
-    // const [step, setStep] = useState(1);
-    const initialState = {count : 0 , step : 1}
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [{ questions, status }, dispatch] = useReducer(reducer, initialState);
 
-  const {count , step} = state
-  const date = new Date("june 16 2025");
-  date.setDate(date.getDate() + count);
+  const numQuestions = questions.length;
 
-  const dec = function () {
-    // setCount((cur)=> cur - step)
-    dispatch({type : "dec" })
-  };
-
-  const inc = function () {
-    // setCount ((cur)=> cur + step)
-    dispatch({type : "inc" });
-  };
-
-  const definecount = function (e) {
-    // setCount(Number(e.target.value))
-    dispatch({type : "setCount" , payload : Number(e.target.value)})
-    
-  };
-
-  const defineStep = function (e) {
-    // setStep(Number(e.target.value));
-  };
-
-  const reset = function () {
-    // setCount(0)
-    // setStep(1);
-  };
-
+  useEffect(function () {
+    fetch("http://localhost:8000/questions")
+      .then((res) => res.json())
+      .then((data) => dispatch({ type: "dataReceived", payload: data }))
+      .catch((err) => dispatch({ type: "dataFailed" }));
+  }, []);
   return (
-    <div className="App">
-      <div>
-        <input
-          type="range"
-          min="0"
-          max="10"
-          value={step}
-          onChange={defineStep}
-        />
-        <span>{step}</span>
-      </div>
-      <div>
-        <button onClick={dec}>-</button>
-        <input value={count} onChange={definecount} />
-        <button onClick={inc}>+</button>
-      </div>
-      <p>{date.toDateString()}</p>
-
-      <div>
-        <button onClick={reset}>Reset</button>
-      </div>
+    <div className="app">
+      <Header />
+      <Main>
+        {status === "loading" && <Loader />}
+        {status === "error" && <Error />}
+        {status === "ready" && (
+          <StartScreen numQuestions={numQuestions} dispatch={dispatch} />
+        )}
+      </Main>
     </div>
   );
 }
